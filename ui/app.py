@@ -11,25 +11,68 @@ class BudgetTrackerApp:
 
         self.db = BudgetDatabase()
 
-        # Categories list
-        self.categories = []
+        # Create login window
+        self.login_window = tk.Toplevel(self.root)
+        self.login_window.title("Login")
+        self.login_window.geometry("400x250")
 
+        # Login variables
+        self.username_var = tk.StringVar()
+        self.password_var = tk.StringVar()
+
+        # Login components
+        ttk.Label(self.login_window, text="Username:").pack(pady=5)
+        ttk.Entry(self.login_window, textvariable=self.username_var).pack(pady=5)
+
+        ttk.Label(self.login_window, text="Password:").pack(pady=5)
+        ttk.Entry(self.login_window, textvariable=self.password_var, show="*").pack(pady=5)
+
+        ttk.Button(self.login_window, text="Login", command=self.login).pack(pady=10)
+        ttk.Button(self.login_window, text="Register", command=self.register).pack(pady=5)
+        
+    def login(self):
+        username = self.username_var.get()
+        password = self.password_var.get()
+
+        # Validate username and password (you may check against a database)
+        if self.db.login(username, password,):
+            self.login_window.destroy()  # Close login window
+            self.initialise_app()
+        else:
+            messagebox.showerror("Login Failed", "Invalid username or password")
+
+    def register(self):
+        username = self.username_var.get()
+        password = self.password_var.get()
+
+        if username:
+            if self.db.register_user(username, password) == False:
+                messagebox.showwarning("Register Error", "This username is taken, please choose another")
+            else:
+                messagebox.showinfo("Registered", "You have successfuly registered")
+
+    def initialise_app(self):
         # Create GUI components
         self.notebook = ttk.Notebook(self.root)
         self.notebook.grid(row=0, column=0, columnspan=3, padx=10, pady=10)
 
-        # Dashboard Page
-        dashboard_page = ttk.Frame(self.notebook)
-        self.notebook.add(dashboard_page, text="Dashboard")
+        self.init_dashboard()
 
-        # Categories Page
+        self.init_categories()
+
+        self.init_income()
+
+        
+
+    def init_categories(self):
+         # Categories Page
         categories_page = ttk.Frame(self.notebook)
         self.notebook.add(categories_page, text="Categories")
 
-        # Category Info
-        self.category_combobox = ttk.Combobox(categories_page, values=self.get_category_names(), state="readonly", width=20)
+         # Category Info
+        self.category_combobox = ttk.Combobox(categories_page, values=self.db.get_category_names(), state="readonly", width=20)
         self.category_combobox.grid(row=0, column=0, padx=10, pady=10)
-        self.category_combobox["values"] = self.db.get_categories()
+        self.category_combobox["values"] = self.db.get_category_names()
         self.category_combobox.bind("<<ComboboxSelected>>", self.on_combobox_selected)
 
         ttk.Button(categories_page, text="See All Expenses", command=self.see_all_expenses).grid(row=0, column=1, padx=10, pady=10)
@@ -63,22 +106,13 @@ class BudgetTrackerApp:
         ttk.Button(categories_page, text="Add Category", command=self.add_category).grid(row=5, column=4, padx=10, pady=5)
 
         # Add Income
-        ttk.Label(categories_page, text="Add Income").grid(row=6, column=0, pady=5, columnspan=2)
+        ttk.Label(categories_page, text="Add Expense").grid(row=6, column=0, pady=5, columnspan=2)
 
         ttk.Label(categories_page, text="Amount:").grid(row=7, column=0, pady=5)
         self.income_entry = ttk.Entry(categories_page, width=15)
         self.income_entry.grid(row=7, column=1, padx=10, pady=5)
 
-        ttk.Button(categories_page, text="Add Income", command=self.add_income).grid(row=7, column=2, padx=10, pady=5)
-
-        # Add Expense
-        ttk.Label(categories_page, text="Add Expense").grid(row=6, column=3, pady=5, columnspan=2)
-
-        ttk.Label(categories_page, text="Amount:").grid(row=7, column=3, pady=5)
-        self.expense_entry = ttk.Entry(categories_page, width=15)
-        self.expense_entry.grid(row=7, column=4, padx=10, pady=5)
-
-        ttk.Button(categories_page, text="Add Expense", command=self.add_expense).grid(row=7, column=5, padx=10, pady=5)
+        ttk.Button(categories_page, text="Add Expense", command=self.add_expense).grid(row=7, column=2, padx=10, pady=5)
 
         # Expenses Table (Simplified Representation)
         ttk.Label(categories_page, text="Expenses Table").grid(row=8, column=0, pady=10, columnspan=6)
@@ -88,6 +122,11 @@ class BudgetTrackerApp:
         self.expenses_table.heading("Amount", text="Amount")
         self.expenses_table.heading("Type", text="Type")
         self.expenses_table.grid(row=9, column=0, columnspan=6, padx=10, pady=5)
+
+    def init_dashboard(self):
+        # Dashboard Page
+        dashboard_page = ttk.Frame(self.notebook)
+        self.notebook.add(dashboard_page, text="Dashboard")
 
         ttk.Label(dashboard_page, text="Pie Chart of Categories").pack(pady=10)
 
@@ -99,6 +138,52 @@ class BudgetTrackerApp:
 
         # TODO: Display the total money available and total money assigned
 
+    def init_income(self):
+         # Categories Page
+        income_page = ttk.Frame(self.notebook)
+        self.notebook.add(income_page, text="Income")
+
+         # Category Info
+        self.income_combobox = ttk.Combobox(income_page, values=self.db.get_category_names(), state="readonly", width=20)
+        self.income_combobox.grid(row=0, column=0, padx=10, pady=10)
+        self.income_combobox["values"] = self.db.get_income_names()
+        self.income_combobox.bind("<<ComboboxSelected>>", self.on_combobox_selected)
+
+        ttk.Button(income_page, text="See All Expenses", command=self.see_all_expenses).grid(row=0, column=1, padx=10, pady=10)
+
+        ttk.Label(income_page, text="Category Info").grid(row=1, column=0, pady=5, columnspan=2)
+
+        ttk.Label(income_page, text="Income:").grid(row=2, column=0, pady=5)
+        ttk.Label(income_page, text="Total Income:").grid(row=2, column=1, pady=5)
+        ttk.Label(income_page, text="Percentage of total income:").grid(row=2, column=2, pady=5)
+
+        self.income_info_labels = [
+            ttk.Label(income_page, text=""),
+            ttk.Label(income_page, text=""),
+            ttk.Label(income_page, text="")
+        ]
+
+        for i, label in enumerate(self.income_info_labels):
+            label.grid(row=3, column=i, pady=5)
+
+        # Add New Category
+        ttk.Label(income_page, text="Add New Income Source").grid(row=4, column=0, pady=5, columnspan=2)
+
+        ttk.Label(income_page, text="Name:").grid(row=5, column=0, pady=5)
+        self.new_income_name_entry = ttk.Entry(income_page, width=15)
+        self.new_income_name_entry.grid(row=5, column=1, padx=10, pady=5)
+
+        ttk.Button(income_page, text="Add Source", command=self.add_category).grid(row=5, column=2, padx=10, pady=5)
+
+        # Add Income
+        ttk.Label(income_page, text="Add Income").grid(row=6, column=0, pady=5, columnspan=2)
+
+        ttk.Label(income_page, text="Amount:").grid(row=7, column=0, pady=5)
+        self.income_entry = ttk.Entry(income_page, width=15)
+        self.income_entry.grid(row=7, column=1, padx=10, pady=5)
+
+        ttk.Button(income_page, text="Add Income", command=self.add_expense).grid(row=7, column=2, padx=10, pady=5)
+
     def see_all_expenses(self):
         # TODO: Implement displaying all expenses in the expenses_table
         pass
@@ -108,12 +193,11 @@ class BudgetTrackerApp:
         new_budget_limit = self.new_budget_limit_entry.get()
 
         if new_category_name and new_budget_limit:
-            new_category = Category(name=new_category_name, budget_limit=float(new_budget_limit))
-            self.db.insert_category(new_category_name, new_budget_limit)
-            self.categories.append(new_category)
+            if self.db.insert_category(new_category_name, new_budget_limit) == False:
+                messagebox.showerror("Category Error", "This category name already exists please choose another")
 
             # Update Combobox
-            self.category_combobox["values"] = self.db.get_categories()
+            self.category_combobox["values"] = self.db.get_category_names()
 
             # Clear entry fields
             self.new_category_name_entry.delete(0, tk.END)
@@ -126,10 +210,9 @@ class BudgetTrackerApp:
         pass
 
     def add_expense(self):
-        print(self.category_combobox.current())
         selected_category_index = self.category_combobox.current()
+        selected_category = self.db.get_category(self.category_combobox.get())
         if selected_category_index != -1:
-            selected_category = self.categories[selected_category_index]
             expense_amount = self.expense_entry.get()
 
             if expense_amount:
@@ -145,17 +228,14 @@ class BudgetTrackerApp:
 
     def show_category_info(self, selected_category_index):
         if selected_category_index != -1:
-            selected_category = self.categories[selected_category_index]
+            selected_category = self.db.get_category(self.category_combobox.get())
 
             # Update Category Info Labels
-            self.category_info_labels[0]["text"] = f"{selected_category.budget_limit}"
-            self.category_info_labels[1]["text"] = f"{selected_category.get_total_expenses()}"
-            self.category_info_labels[2]["text"] = f"{selected_category.budget_limit - selected_category.get_total_expenses()}"
+            self.category_info_labels[0]["text"] = f"{selected_category[2]}"
+            self.category_info_labels[1]["text"] = f"{selected_category[3]}"
+            self.category_info_labels[2]["text"] = f"{selected_category[2] - selected_category[3]}"
         else:
             messagebox.showwarning("Selection Error", "Please select a category.")
-
-    def get_category_names(self):
-        return [category.name for category in self.categories]
     
     def on_combobox_selected(self, event):
         self.show_category_info(self.category_combobox.current())
