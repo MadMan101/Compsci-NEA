@@ -4,6 +4,8 @@ from categories.category import Category
 from expenses.expense import Expense
 from databases.database import BudgetDatabase
 import configparser
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 class BudgetTrackerApp:
     def __init__(self, root):
@@ -36,6 +38,8 @@ class BudgetTrackerApp:
         # Create a frame to contain the login buttons
         button_frame = ttk.Frame(self.login_window)
         button_frame.pack(pady=10)
+
+        self.reset_value = 0.0
 
         # Login and Login as User buttons
         ttk.Button(button_frame, text="Login", command=self.login).pack(side=tk.LEFT, padx=5)
@@ -93,10 +97,8 @@ class BudgetTrackerApp:
                 
                 return credentials
             except configparser.Error as e:
-                print("Error loading credentials:", e)
                 return {}
         else:
-            print("Credentials file does not exist. Creating a new one.")
             # Create a new credentials file
             with open("credentials.ini", "w") as configfile:
                 config.add_section("Credentials")
@@ -190,6 +192,9 @@ class BudgetTrackerApp:
         self.expenses_table.heading("Description", text="Description")
         self.expenses_table.grid(row=9, column=0, columnspan=6, padx=10, pady=5)
 
+        reset_button = ttk.Button(categories_page, text="New Period", command=self.reset)
+        reset_button.grid(row=0, column=5, sticky=tk.NE, padx=10, pady=5)
+
     def init_dashboard(self):
         # Dashboard Page
         dashboard_page = ttk.Frame(self.notebook)
@@ -198,6 +203,9 @@ class BudgetTrackerApp:
         # Logout button
         logout_button = ttk.Button(dashboard_page, text="Logout", command=self.logout)
         logout_button.pack(side=tk.TOP, anchor=tk.NE, padx=10, pady=5)
+
+        graphs_button = ttk.Button(dashboard_page, text="Show Graphs", command=self.show_graphs_popup)
+        graphs_button.pack(side=tk.TOP, anchor=tk.NE, padx=10, pady=5)
 
         ttk.Label(dashboard_page, text="Pie Chart of Categories").pack(pady=10)
 
@@ -213,12 +221,18 @@ class BudgetTrackerApp:
 
         # TODO: Display the total money available and total money assigned
 
-        self.transaction_table = ttk.Treeview(dashboard_page, columns=("Date", "Categories", "Amount", "Description"), show="headings")
+        self.transaction_table = ttk.Treeview(dashboard_page, columns=("ID", "Date", "Categories", "Amount", "Description"), show="headings")
+        self.transaction_table.heading("ID", text="ID")
         self.transaction_table.heading("Date", text="Date")
         self.transaction_table.heading("Categories", text="Categories")
         self.transaction_table.heading("Amount", text="Amount")
         self.transaction_table.heading("Description", text="Description")
         self.transaction_table.pack(pady=10)
+
+        self.transaction_table.column("ID", width=1, stretch=tk.NO)
+
+        delete_button = ttk.Button(dashboard_page, text="Delete entry", command=self.delete_entry)
+        delete_button.pack(side=tk.LEFT, anchor=tk.NE, padx=10, pady=5)
 
     def init_income(self):
          # Categories Page
@@ -268,6 +282,71 @@ class BudgetTrackerApp:
 
         ttk.Button(income_page, text="Add Income", command=self.add_income).grid(row=7, column=4, padx=10, pady=5)
 
+        # Expenses Table (Simplified Representation)
+        ttk.Label(income_page, text="Income Table").grid(row=8, column=0, pady=10, columnspan=6)
+
+        self.income_table = ttk.Treeview(income_page, columns=("Date", "Amount", "Description"), show="headings")
+        self.income_table.heading("Date", text="Date")
+        self.income_table.heading("Amount", text="Amount")
+        self.income_table.heading("Description", text="Description")
+        self.income_table.grid(row=9, column=0, columnspan=6, padx=10, pady=5)
+
+    def reset(self):
+        self.db.new_reset()
+        self.show_all()
+        self.show_category_info()
+        self.show_expenses()
+
+    def show_graphs_popup(self):
+        # Create a pop-up window for displaying graphs
+        popup_window = tk.Tk()
+        popup_window.title("Graphs")
+        popup_window.geometry("600x600")
+
+        # Create a canvas to hold the graphs
+        canvas = tk.Canvas(popup_window)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Add a scrollbar to the canvas for scrolling
+        scrollbar = tk.Scrollbar(popup_window, orient=tk.VERTICAL, command=canvas.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Create a frame inside the canvas to hold the graphs
+        graph_frame = ttk.Frame(canvas)
+        canvas.create_window((0, 0), window=graph_frame, anchor="nw")
+
+        exPieInfo = self.db.expenses_pie()
+
+        # Create the first graph (pie chart)
+        fig1, ax1 = plt.subplots()
+        ax1.pie(exPieInfo[0], labels=exPieInfo[1], autopct='%1.1f%%')
+        ax1.set_title("Expense Categories")
+
+        # Create a FigureCanvasTkAgg instance for the first graph
+        canvas1 = FigureCanvasTkAgg(fig1, master=graph_frame)
+        canvas1.draw()
+        canvas1.get_tk_widget().pack()
+
+        inPieInfo = self.db.income_pie()
+
+        # Create the first graph (pie chart)
+        fig3, ax3 = plt.subplots()
+        ax3.pie(inPieInfo[0], labels=inPieInfo[1], autopct='%1.1f%%')
+        ax3.set_title("Income Categories")
+
+        # Create a FigureCanvasTkAgg instance for the first graph
+        canvas3 = FigureCanvasTkAgg(fig3, master=graph_frame)
+        canvas3.draw()
+        canvas3.get_tk_widget().pack()
+
+        # Update the scroll region of the canvas
+        graph_frame.update_idletasks()
+        canvas.config(scrollregion=canvas.bbox("all"))
+
+        # Run the Tkinter main loop
+        popup_window.mainloop()
+
     def see_all_expenses(self):
         # TODO: Implement displaying all expenses in the expenses_table
         pass
@@ -289,6 +368,15 @@ class BudgetTrackerApp:
         else:
             messagebox.showwarning("Input Error", "Please enter category name and budget limit.")
 
+    def delete_entry(self):
+        selected_item = self.transaction_table.selection()
+        id = self.transaction_table.item(selected_item, "values")[0]
+        amount = self.transaction_table.item(selected_item, "values")[3]
+        
+        self.db.delete_transaction(id, float(amount))
+
+        self.show_all()
+
     def add_income(self):
         selected_category_index = self.income_combobox.current()
         income_name = self.income_name_entry.get()
@@ -305,12 +393,16 @@ class BudgetTrackerApp:
                 self.income_name_entry.delete(0, tk.END)
                 self.income_amount_entry.delete(0, tk.END)
                 
-                self.show_dashboard_info()
-                self.show_transactions()
+                self.show_all()
+                self.show_income()
+                self.show_income_info()
             else:
                 messagebox.showwarning("Input Error", "Please enter income amount")
         else:
             messagebox.showwarning("Selection Error", "Please select a category")
+        self.show_all()
+        self.show_income()
+        self.show_income_info()
 
     def add_source(self): 
         new_source_name = self.new_income_name_entry.get()
@@ -337,42 +429,44 @@ class BudgetTrackerApp:
                 self.db.add_expense(selected_category[0], expense_amount, expense_description)
                 messagebox.showinfo("Expense Added", f"Expense of {expense_amount} added to {selected_category[1]}")
                 self.category_expense_entry.delete(0, tk.END)
-                self.show_category_info(selected_category_index)
-                # TODO: Update expenses_table
+                self.category_name_entry.delete(0, tk.END)
+                self.show_all()
+                self.show_expenses()
+                self.show_category_info()
             else:
                 messagebox.showwarning("Input Error", "Please enter expense amount.")
         else:
             messagebox.showwarning("Selection Error", "Please select a category.")
 
-        self.show_dashboard_info()
-        self.show_transactions()
-
-    def show_category_info(self, selected_category_index):
-        if selected_category_index != -1:
-            selected_category = self.db.get_category(self.category_combobox.get())
-
-            # Update Category Info Labels
-            self.category_info_labels[0]["text"] = f"{selected_category[2]}"
-            self.category_info_labels[1]["text"] = f"{selected_category[3]}"
-            self.category_info_labels[2]["text"] = f"{selected_category[2] - selected_category[3]}"
-        else:
-            messagebox.showwarning("Selection Error", "Please select a category.")
+        self.show_all()
+        self.show_expenses()
+        self.show_category_info()
 
     def show_income_info(self, selected_category_index):
         print(0)
-
-    def show_dashboard_info(self):
-        self.funds_text["text"] = self.db.get_funds()
     
     def on_combobox_selected(self, event):
-        self.show_category_info(self.category_combobox.current())
+        self.show_category_info()
 
-        self.show_expenses(self.db.get_category(self.category_combobox.get())[0])
+        self.show_expenses()
 
     def on_combobox_income_selected(self, event):
-        self.show_income_info(self.income_combobox.current())
+        self.show_income_info()
 
-    def show_expenses(self, category_id):
+        self.show_income()
+
+    #"show" functions
+        
+    def show_all(self):
+        self.show_dashboard_info()
+        self.show_transactions()
+        
+    def show_dashboard_info(self):
+        self.funds_text["text"] = self.db.get_funds()
+
+    def show_expenses(self):
+        category_id = self.db.get_category(self.category_combobox.get())[0]
+
         # Clear existing entries in the expenses_table
         for item in self.expenses_table.get_children():
             self.expenses_table.delete(item)
@@ -384,6 +478,20 @@ class BudgetTrackerApp:
         for expense in expenses:
             self.expenses_table.insert("", 0, values=(expense[0], expense[1], expense[2],))
 
+    def show_income(self):
+        category_id = self.db.get_income(self.income_combobox.get())[0]
+
+        # Clear existing entries in the income_table
+        for item in self.income_table.get_children():
+            self.income_table.delete(item)
+
+        # Fetch expenses for the selected category from the database
+        expenses = self.db.get_incomes(category_id)
+
+        # Insert expenses into the income_table
+        for expense in expenses:
+            self.income_table.insert("", 0, values=(expense[0], expense[1], expense[2],))
+
     def show_transactions(self):
         # Clear existing entries in the expenses_table
         for item in self.transaction_table.get_children():
@@ -394,7 +502,36 @@ class BudgetTrackerApp:
 
         # Insert expenses into the expenses_table
         for expense in expenses:
-            self.transaction_table.insert("", 0, values=(expense[0], expense[3], expense[1], expense[2]))
+            self.transaction_table.insert("", 0, values=(expense[4], expense[0], expense[3], expense[1], expense[2]))
+
+    def show_category_info(self):
+        selected_category_index = self.db.get_category(self.category_combobox.get())
+
+        if selected_category_index != -1:
+            selected_category = self.db.get_category(self.category_combobox.get())
+
+            # Update Category Info Labels
+            self.category_info_labels[0]["text"] = f"{selected_category[2]}"
+            self.category_info_labels[1]["text"] = selected_category[3] - selected_category[4]
+            self.category_info_labels[2]["text"] = selected_category[2] - selected_category[3] + selected_category[4]
+        else:
+            messagebox.showwarning("Selection Error", "Please select a category.")
+
+    def show_income_info(self):
+        selected_category_index = self.db.get_income(self.income_combobox.get())
+
+        if selected_category_index != -1:
+            selected_category = self.db.get_income(self.income_combobox.get())
+
+            # Update Category Info Labels
+            self.income_info_labels[0]["text"] = round(selected_category[3],3)
+            self.income_info_labels[1]["text"] = round(selected_category[2], 3)
+            if selected_category[2] != 0:
+                self.income_info_labels[2]["text"] = round((selected_category[3] * 100) / selected_category[2], 3)
+            else:
+                self.income_info_labels[2]["text"] = 0.0
+        else:
+            messagebox.showwarning("Selection Error", "Please select a category.")
 
     def hash(input_string):
         hash_value = 5381
