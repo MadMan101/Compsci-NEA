@@ -242,17 +242,17 @@ class BudgetDatabase:
         try:
             # Determine if the transaction is an income or an expense
             is_expense = amount < 0
+
+            cursor.execute("SELECT category_id FROM transactions WHERE id = ?", (id,))
+            cat_id = cursor.fetchone()[0]
             
             # Execute the DELETE statement
             cursor.execute("DELETE FROM transactions WHERE id = ?", (id,))
             
             # Adjust user funds based on the type of transaction
             if is_expense:
-                cursor.execute("SELECT category_id FROM transactions WHERE id = ?", (id,))
-                cat_id = cursor.fetchone()[0]
-
-                cursor.execute("UPDATE users SET funds = funds + ? WHERE id = ?", (amount, self.id,))
-                cursor.execute("UPDATE categories SET spent = spent - ? WHERE id = ?", (amount, cat_id,))
+                cursor.execute("UPDATE users SET funds = funds - ? WHERE id = ?", (amount, self.id,))
+                cursor.execute("UPDATE categories SET spent = spent + ? WHERE id = ?", (amount, cat_id,))
             else:
                 cursor.execute("UPDATE users SET funds = funds - ? WHERE id = ?", (amount, self.id,))
             
