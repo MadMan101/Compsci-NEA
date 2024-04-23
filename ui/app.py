@@ -1,7 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from categories.category import Category
-from expenses.expense import Expense
 from databases.database import BudgetDatabase
 import configparser
 import matplotlib.pyplot as plt
@@ -183,7 +181,7 @@ class BudgetTrackerApp:
 
         ttk.Button(categories_page, text="Add Expense", command=self.add_expense).grid(row=7, column=4, padx=10, pady=5)
 
-        # Expenses Table (Simplified Representation)
+        # Expenses Table 
         ttk.Label(categories_page, text="Expenses Table").grid(row=8, column=0, pady=10, columnspan=6)
 
         self.expenses_table = ttk.Treeview(categories_page, columns=("Date", "Amount", "Description"), show="headings")
@@ -216,10 +214,6 @@ class BudgetTrackerApp:
         ttk.Label(dashboard_page, text="Total Money Assigned:").pack(pady=5)
 
         self.show_dashboard_info()
-
-        # TODO: Add Pie Chart widget (you may use Matplotlib for this)
-
-        # TODO: Display the total money available and total money assigned
 
         self.transaction_table = ttk.Treeview(dashboard_page, columns=("ID", "Date", "Categories", "Amount", "Description"), show="headings")
         self.transaction_table.heading("ID", text="ID")
@@ -282,7 +276,7 @@ class BudgetTrackerApp:
 
         ttk.Button(income_page, text="Add Income", command=self.add_income).grid(row=7, column=4, padx=10, pady=5)
 
-        # Expenses Table (Simplified Representation)
+        # Expenses Table
         ttk.Label(income_page, text="Income Table").grid(row=8, column=0, pady=10, columnspan=6)
 
         self.income_table = ttk.Treeview(income_page, columns=("Date", "Amount", "Description"), show="headings")
@@ -298,58 +292,44 @@ class BudgetTrackerApp:
         self.show_expenses()
 
     def show_graphs_popup(self):
-        # Create a pop-up window for displaying graphs
         popup_window = tk.Tk()
         popup_window.title("Graphs")
         popup_window.geometry("600x600")
 
-        # Create a canvas to hold the graphs
         canvas = tk.Canvas(popup_window)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Add a scrollbar to the canvas for scrolling
         scrollbar = tk.Scrollbar(popup_window, orient=tk.VERTICAL, command=canvas.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        # Create a frame inside the canvas to hold the graphs
         graph_frame = ttk.Frame(canvas)
         canvas.create_window((0, 0), window=graph_frame, anchor="nw")
 
         exPieInfo = self.db.expenses_pie()
 
-        # Create the first graph (pie chart)
         fig1, ax1 = plt.subplots()
         ax1.pie(exPieInfo[0], labels=exPieInfo[1], autopct='%1.1f%%')
         ax1.set_title("Expense Categories")
 
-        # Create a FigureCanvasTkAgg instance for the first graph
         canvas1 = FigureCanvasTkAgg(fig1, master=graph_frame)
         canvas1.draw()
         canvas1.get_tk_widget().pack()
 
         inPieInfo = self.db.income_pie()
 
-        # Create the first graph (pie chart)
         fig3, ax3 = plt.subplots()
         ax3.pie(inPieInfo[0], labels=inPieInfo[1], autopct='%1.1f%%')
         ax3.set_title("Income Categories")
 
-        # Create a FigureCanvasTkAgg instance for the first graph
         canvas3 = FigureCanvasTkAgg(fig3, master=graph_frame)
         canvas3.draw()
         canvas3.get_tk_widget().pack()
 
-        # Update the scroll region of the canvas
         graph_frame.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
 
-        # Run the Tkinter main loop
         popup_window.mainloop()
-
-    def see_all_expenses(self):
-        # TODO: Implement displaying all expenses in the expenses_table
-        pass
 
     def add_category(self):
         new_category_name = self.new_category_name_entry.get()
@@ -454,8 +434,6 @@ class BudgetTrackerApp:
         self.show_income_info()
 
         self.show_income()
-
-    #"show" functions
         
     def show_all(self):
         self.show_dashboard_info()
@@ -539,7 +517,6 @@ class BudgetTrackerApp:
         for char in input_string:
             hash_value = (hash_value * 33) ^ ord(char)
 
-        # Apply additional mixing steps (XOR and bit shifting)
         hash_value = (hash_value ^ (hash_value >> 15)) * 2654435761 & 0xFFFFFFFF
         hash_value = (hash_value ^ (hash_value >> 13)) * 2654435761 & 0xFFFFFFFF
         hash_value = hash_value ^ (hash_value >> 16)

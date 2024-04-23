@@ -58,8 +58,6 @@ class BudgetDatabase:
         ''')
 
         self.conn.commit()
-
-    #Register system
         
     def register_user(self, user, password):
         valid = False
